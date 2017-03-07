@@ -32,13 +32,15 @@ PROJECT ( OpenVDB )
 
 ENABLE_TESTING()
 
-OPTION ( OPENVDB_BUILD_UNITTESTS "Build the OpenVDB unit tests" ON )
+OPTION ( OPENVDB_BUILD_UNITTESTS "Build the OpenVDB unit tests" OFF )
 OPTION ( OPENVDB_BUILD_DOCS "Build the OpenVDB documentation" OFF )
-OPTION ( OPENVDB_BUILD_PYTHON_MODULE "Build the pyopenvdb Python module" ON )
+OPTION ( OPENVDB_BUILD_PYTHON_MODULE "Build the pyopenvdb Python module" OFF )
 OPTION ( OPENVDB_BUILD_HOUDINI_SOPS "Build the Houdini SOPs" OFF )
 OPTION ( OPENVDB_BUILD_MAYA_PLUGIN "Build the Maya plugin" OFF )
 OPTION ( OPENVDB_ENABLE_RPATH "Build with RPATH information" ON )
 OPTION ( OPENVDB_ENABLE_3_ABI_COMPATIBLE "Build with OpenVDB v3 ABI" ON )
+
+OPTION ( STATIC_WINCRT "Use the staticly linked Windows CRT (/MT or /MTd)" OFF )
 
 IF (OPENVDB_BUILD_HOUDINI_SOPS)
   SET ( OPENVDB_BUILD_PYTHON_MODULE OFF )
@@ -53,6 +55,28 @@ ENDIF ()
 LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 SET ( OPENVDB_TOP_LEVEL_DIR ${PROJECT_SOURCE_DIR} CACHE PATH "OpenVDB Top Level Directory to share among sub projects" )
+
+if (WIN32)
+	# Are we using the static or dynamic RT library? Whatever we use, it needs to be the same in any dependencies
+	#  we pull in or we're potentially having mismatch issues.
+	IF(STATIC_WINCRT)
+		SET(WINCRT_NDEBUG "/MT")
+		SET(WINCRT_DEBUG "/MTd")
+		
+		SET(Boost_USE_STATIC_RUNTIME ON)
+		
+	ELSE()
+		SET(WINCRT_NDEBUG "/MD")
+		SET(WINCRT_DEBUG "/MDd")
+
+		SET(Boost_USE_STATIC_RUNTIME OFF)
+	ENDIF()
+
+	SET(CMAKE_CXX_FLAGS_DEBUG "/Od /RTCsu ${WINCRT_DEBUG}")
+	SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/Ox ${WINCRT_DEBUG}")
+	SET(CMAKE_CXX_FLAGS_RELEASE "/Ox ${WINCRT_NDEBUG}")
+	SET(CMAKE_CXX_FLAGS_MINSIZEREL "/Ox ${WINCRT_NDEBUG}")
+ENDIF()
 
 INCLUDE_DIRECTORIES ( ${OPENVDB_TOP_LEVEL_DIR} ) # To make sure we pick up headers from this version of OpenVDB we are building
 
