@@ -1,0 +1,49 @@
+#
+#
+#
+
+# WTF is this shit
+# Working around hardcoding of path at DWA
+FILE ( GLOB VIEWER_SOURCE_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} viewer/* )
+FILE ( MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/dwa/openvdb_viewer )
+FILE ( COPY ${VIEWER_SOURCE_FILES} DESTINATION ${CMAKE_BINARY_DIR}/dwa/openvdb_viewer )
+INCLUDE_DIRECTORIES ( ${CMAKE_BINARY_DIR}/dwa )
+
+
+SET ( VDB_VIEW_SOURCE_FILES
+  cmd/openvdb_view/main.cc
+  viewer/Camera.cc
+  viewer/ClipBox.cc
+  viewer/Font.cc
+  viewer/RenderModules.cc
+  viewer/Viewer.cc
+ )
+SET_SOURCE_FILES_PROPERTIES ( ${VDB_VIEW_SOURCE_FILES}
+  PROPERTIES
+  COMPILE_FLAGS "-DOPENVDB_USE_BLOSC ${OPENVDB_USE_GLFW_FLAG} -DGL_GLEXT_PROTOTYPES=1"
+  )
+IF (NOT WIN32)
+  ADD_EXECUTABLE ( vdb_view
+	${VDB_VIEW_SOURCE_FILES}
+	)
+
+TARGET_LINK_LIBRARIES ( vdb_view
+  openvdb_static
+  ${BLOSC_blosc_LIBRARY}
+  ${OPENGL_gl_LIBRARY}
+  ${OPENGL_glu_LIBRARY}
+  ${COCOA_LIBRARY}
+  ${IOKIT_LIBRARY}
+  ${COREVIDEO_LIBRARY}
+  ${GLFW_LINK_LIBRARY}
+  ${GLFW_DEPENDENT_LIBRARIES}
+  ${GLEW_GLEW_LIBRARY}
+  )
+ENDIF ()
+
+  INSTALL ( TARGETS
+	vdb_view
+	DESTINATION
+	bin
+	)
+

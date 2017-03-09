@@ -1,0 +1,18 @@
+#
+#
+#
+
+# SET ( VDB_PRINT_SOURCE_FILES  cmd/openvdb_print/main.cc )
+# SET_SOURCE_FILES_PROPERTIES ( ${VDB_PRINT_SOURCE_FILES}
+  # PROPERTIES
+  # COMPILE_FLAGS "-DOPENVDB_USE_BLOSC ${OPENVDB_USE_GLFW_FLAG}"
+# )
+
+# ADD_EXECUTABLE ( vdb_print
+  # ${VDB_PRINT_SOURCE_FILES}
+  # )
+
+# TARGET_LINK_LIBRARIES ( vdb_print
+  # openvdb_static
+  # ${BLOSC_blosc_LIBRARY}
+  # )

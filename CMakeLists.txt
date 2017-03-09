@@ -26,11 +26,9 @@
 #
 
 # yue.nicholas@gmail.com
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.7)
 
-PROJECT ( OpenVDB )
-
-ENABLE_TESTING()
+PROJECT ( OpenVDB CXX )
 
 OPTION ( OPENVDB_BUILD_UNITTESTS "Build the OpenVDB unit tests" OFF )
 OPTION ( OPENVDB_BUILD_DOCS "Build the OpenVDB documentation" OFF )
@@ -39,6 +37,7 @@ OPTION ( OPENVDB_BUILD_HOUDINI_SOPS "Build the Houdini SOPs" OFF )
 OPTION ( OPENVDB_BUILD_MAYA_PLUGIN "Build the Maya plugin" OFF )
 OPTION ( OPENVDB_ENABLE_RPATH "Build with RPATH information" ON )
 OPTION ( OPENVDB_ENABLE_3_ABI_COMPATIBLE "Build with OpenVDB v3 ABI" ON )
+OPTION ( OPENVDB_BUILD_SHARED "Build a shared lib (dll) instead of a static lib" OFF)
 
 OPTION ( STATIC_WINCRT "Use the staticly linked Windows CRT (/MT or /MTd)" OFF )
 
@@ -46,50 +45,16 @@ IF (OPENVDB_BUILD_HOUDINI_SOPS)
   SET ( OPENVDB_BUILD_PYTHON_MODULE OFF )
 ENDIF ()
 
-IF ( APPLE )
-  IF ( OPENVDB_BUILD_HOUDINI_SOPS AND OPENVDB_BUILD_MAYA_PLUGIN )
-	MESSAGE ( FATAL_ERROR "On OSX, Houdini linked with libc++ whereas Maya is linked with libstdc++, the different runtimes are not mutually compatible, build them Houdini SOPs and Maya plugins separately with the requisite DCC's compiler" )
-  ENDIF ()
-ENDIF ()
+if (OPENVDB_BUILD_UNITTESTS)
+	ENABLE_TESTING()
+ENDIF()
 
-LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules")
 
 SET ( OPENVDB_TOP_LEVEL_DIR ${PROJECT_SOURCE_DIR} CACHE PATH "OpenVDB Top Level Directory to share among sub projects" )
 
-if (WIN32)
-	# Are we using the static or dynamic RT library? Whatever we use, it needs to be the same in any dependencies
-	#  we pull in or we're potentially having mismatch issues.
-	IF(STATIC_WINCRT)
-		SET(WINCRT_NDEBUG "/MT")
-		SET(WINCRT_DEBUG "/MTd")
-		
-		SET(Boost_USE_STATIC_RUNTIME ON)
-		
-	ELSE()
-		SET(WINCRT_NDEBUG "/MD")
-		SET(WINCRT_DEBUG "/MDd")
 
-		SET(Boost_USE_STATIC_RUNTIME OFF)
-	ENDIF()
+SET(PROJECT_CMAKE_FILES_DIR cmake)
 
-	SET(CMAKE_CXX_FLAGS_DEBUG "/Od /RTCsu ${WINCRT_DEBUG}")
-	SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/Ox ${WINCRT_DEBUG}")
-	SET(CMAKE_CXX_FLAGS_RELEASE "/Ox ${WINCRT_NDEBUG}")
-	SET(CMAKE_CXX_FLAGS_MINSIZEREL "/Ox ${WINCRT_NDEBUG}")
-ENDIF()
-
-INCLUDE_DIRECTORIES ( ${OPENVDB_TOP_LEVEL_DIR} ) # To make sure we pick up headers from this version of OpenVDB we are building
-
-IF ( OPENVDB_ENABLE_3_ABI_COMPATIBLE )
-  ADD_DEFINITIONS ( -DOPENVDB_3_ABI_COMPATIBLE )
-ENDIF ()
-
-ADD_SUBDIRECTORY ( openvdb )
-
-IF ( OPENVDB_BUILD_HOUDINI_SOPS )
-  ADD_SUBDIRECTORY ( openvdb_houdini )
-ENDIF ()
-
-IF ( OPENVDB_BUILD_MAYA_PLUGIN )
-  ADD_SUBDIRECTORY ( openvdb_maya )
-ENDIF ()
+# Include the platform specific configuration
+INCLUDE(${PROJECT_CMAKE_FILES_DIR}/${TARGET_BUILD_PLATFORM}/CMakeLists.txt)
