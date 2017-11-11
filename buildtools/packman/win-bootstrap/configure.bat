@@ -1,8 +1,7 @@
-@set PM_PACKMAN_VERSION=3.7
+@set PM_PACKMAN_VERSION=4.2.1
 
-:: Read PM_PACKAGE_SOURCE from file
-@set /p PM_PACKAGE_SOURCE=<"%~dp0\..\..\source.conf"
-@echo PM_PACKAGE_SOURCE: %PM_PACKAGE_SOURCE%
+:: Specify where config file could exist
+@set PM_CONFIG_PATH=%~dp0..\packman_config.txt
 
 :: The external root may already be configured and we should do minimal work in that case
 @if defined PM_PACKAGES_ROOT goto ENSURE_DIR
@@ -11,7 +10,7 @@
 :: running from
 @set PM_DRIVE=%CD:~0,2%
 
-@set PM_PACKAGES_ROOT=%PM_DRIVE%\NVIDIA\packman-repo
+@set PM_PACKAGES_ROOT=%PM_DRIVE%\packman-repo
 
 :: We use *setx* here so that the variable is persisted in the user environment
 @echo Setting user environment variable PM_PACKAGES_ROOT to %PM_PACKAGES_ROOT%
@@ -21,7 +20,15 @@
 :: The above doesn't work properly from a build step in VisualStudio because a separate process is
 :: spawned for it so it will be lost for subsequent compilation steps - VisualStudio must
 :: be launched from a new process. We catch this odd-ball case here:
-@if defined VSLANG goto ERROR_IN_VS_WITH_NO_ROOT_DEFINED
+@if defined PM_DISABLE_VS_WARNING goto ENSURE_DIR
+@if not defined VSLANG goto ENSURE_DIR
+@echo The above is a once-per-computer operation. Unfortunately VisualStudio cannot pick up environment change
+@echo unless *VisualStudio is RELAUNCHED*.
+@echo If you are launching VisualStudio from command line or command line utility make sure
+@echo you have a fresh launch environment (relaunch the command line or utility).
+@echo If you are using 'linkPath' and referring to packages via local folder links you can safely ignore this warning.
+@echo You can disable this warning by setting the environment variable PM_DISABLE_VS_WARNING.
+@echo.
 
 :: Check for the directory that we need. Note that mkdir will create any directories
 :: that may be needed in the path 
@@ -46,15 +53,14 @@
 @set PM_PYTHON_PACKAGE=python@2.7.6-windows-x86.exe
 @for /f "delims=" %%a in ('powershell -ExecutionPolicy ByPass -NoLogo -NoProfile -File "%~dp0\generate_temp_file_name.ps1"') do @set TEMP_FILE_NAME=%%a
 @set TARGET=%TEMP_FILE_NAME%.exe
-@set PM_PYTHON_GUID=4AB33777-0B8F-418A-ACEC-E673D09F164C
-@call "%~dp0fetch_file.cmd" %PM_PACKAGE_SOURCE% %PM_PYTHON_PACKAGE% %PM_PYTHON_GUID% %TARGET%
+@call "%~dp0fetch_file_from_s3.cmd" %PM_PYTHON_PACKAGE% "%TARGET%"
 @if errorlevel 1 goto ERROR
 
 @echo Unpacking ...
-@%TARGET% -o"%PM_PYTHON_DIR%" -y
+@"%TARGET%" -o"%PM_PYTHON_DIR%" -y 1> nul
 @if errorlevel 1 goto ERROR
 
-@del %TARGET%
+@del "%TARGET%"
 
 :PACKMAN
 :: The packman module may already be externally configured
@@ -63,33 +69,24 @@
 	@goto END
 )
 
-@set PM_MODULE_DIR=%PM_PACKAGES_ROOT%\packman\%PM_PACKMAN_VERSION%-common
+@set PM_MODULE_DIR=%PM_PACKAGES_ROOT%\packman-common\%PM_PACKMAN_VERSION%
 @set PM_MODULE=%PM_MODULE_DIR%\packman.py
 
 @if exist "%PM_MODULE%" goto END
 
-@set PM_MODULE_PACKAGE=packman@%PM_PACKMAN_VERSION%-common.zip
+@set PM_MODULE_PACKAGE=packman-common@%PM_PACKMAN_VERSION%.zip
 @for /f "delims=" %%a in ('powershell -ExecutionPolicy ByPass -NoLogo -NoProfile -File "%~dp0\generate_temp_file_name.ps1"') do @set TEMP_FILE_NAME=%%a
 @set TARGET=%TEMP_FILE_NAME%
-@set PM_COMMON_GUID=24ED6205-CFE6-4A64-A4B3-4BD87B64279F
-@call "%~dp0fetch_file.cmd" %PM_PACKAGE_SOURCE% %PM_MODULE_PACKAGE% %PM_COMMON_GUID% %TARGET%
+@call "%~dp0fetch_file_from_s3.cmd" %PM_MODULE_PACKAGE% "%TARGET%"
 @if errorlevel 1 goto ERROR
 
 @echo Unpacking ...
-@"%PM_PYTHON%" "%~dp0\install_package.py" %TARGET% "%PM_MODULE_DIR%"
+@"%PM_PYTHON%" "%~dp0\install_package.py" "%TARGET%" "%PM_MODULE_DIR%"
 @if errorlevel 1 goto ERROR
 
-@del %TARGET%
+@del "%TARGET%"
 
 @goto END
-
-:ERROR_IN_VS_WITH_NO_ROOT_DEFINED
-@echo The above is a once-per-computer operation. Unfortunately VisualStudio cannot pick up environment change
-@echo unless *VisualStudio is RELAUNCHED*.
-@echo NOTE: If you are launching VisualStudio from command line or command line utility make sure
-@echo you have a fresh environment (relaunch the command line or utility).
-@echo.
-@exit /B 1
 
 :ERROR_MKDIR_PACKAGES_ROOT
 @echo Failed to automatically create packman packages repo at %PM_PACKAGES_ROOT%.

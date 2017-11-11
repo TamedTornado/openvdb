@@ -127,7 +127,7 @@ public:
     enum Flag {
         TRANSIENT = 0x1,            /// by default not written to disk
         HIDDEN = 0x2,               /// hidden from UIs or iterators
-        OUTOFCORE = 0x4,            /// data not yet loaded from disk
+        OUTOFCORE = 0x4,            /// data not yet loaded from disk (deprecated flag as of ABI=5)
         CONSTANTSTRIDE = 0x8,       /// stride size does not vary in the array
         STREAMING = 0x10            /// streaming mode collapses attributes when first accessed
     };
@@ -297,6 +297,10 @@ protected:
     uint8_t mFlags = 0;
     uint8_t mSerializationFlags = 0;
 
+#if OPENVDB_ABI_VERSION_NUMBER >= 5
+    tbb::atomic<Index32> mOutOfCore = 0; // interpreted as bool
+#endif
+
     /// used for out-of-core, paged reading
     compression::PageHandle::Ptr mPageHandle;
 }; // class AttributeArray
@@ -333,7 +337,7 @@ struct AttributeArray::Accessor : public AttributeArray::AccessorBase
 namespace attribute_traits
 {
     template <typename T> struct TruncateTrait { };
-    template <> struct TruncateTrait<float> { using Type = half; };
+    template <> struct TruncateTrait<float> { using Type = float; };
     template <> struct TruncateTrait<int> { using Type = short; };
 
     template <typename T> struct TruncateTrait<math::Vec3<T>> {
@@ -1359,7 +1363,11 @@ template<typename ValueType_, typename Codec_>
 bool
 TypedAttributeArray<ValueType_, Codec_>::isOutOfCore() const
 {
+#if OPENVDB_ABI_VERSION_NUMBER >= 5
+    return mOutOfCore;
+#else
     return (mFlags & OUTOFCORE);
+#endif
 }
 
 
@@ -1367,8 +1375,12 @@ template<typename ValueType_, typename Codec_>
 void
 TypedAttributeArray<ValueType_, Codec_>::setOutOfCore(const bool b)
 {
+#if OPENVDB_ABI_VERSION_NUMBER >= 5
+    mOutOfCore = b;
+#else
     if (b) mFlags = static_cast<uint8_t>(mFlags | OUTOFCORE);
     else   mFlags = static_cast<uint8_t>(mFlags & ~OUTOFCORE);
+#endif
 }
 
 
@@ -1579,7 +1591,11 @@ TypedAttributeArray<ValueType_, Codec_>::writeMetadata(std::ostream& os, bool ou
 {
     if (!outputTransient && this->isTransient())    return;
 
+#if OPENVDB_ABI_VERSION_NUMBER >= 5
+    uint8_t flags(mFlags);
+#else
     uint8_t flags(mFlags & uint8_t(~OUTOFCORE));
+#endif
     uint8_t serializationFlags(0);
     Index size(mSize);
     Index stride(mStrideOrTotalSize);
@@ -1746,7 +1762,11 @@ TypedAttributeArray<ValueType_, Codec_>::doLoadUnsafe(const bool compression) co
 
     // clear all write and out-of-core flags
 
+#if OPENVDB_ABI_VERSION_NUMBER >= 5
+    self->mOutOfCore = false;
+#else
     self->mFlags &= uint8_t(~OUTOFCORE);
+#endif
     self->mSerializationFlags &= uint8_t(~WRITEUNIFORM & ~WRITEMEMCOMPRESS & ~WRITEPAGED);
 }
 

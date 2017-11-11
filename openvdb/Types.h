@@ -33,7 +33,7 @@
 
 #include "version.h"
 #include "Platform.h"
-#include <OpenEXR/half.h>
+//#include <OpenEXR/half.h>
 #include <openvdb/math/Math.h>
 #include <openvdb/math/BBox.h>
 #include <openvdb/math/Quat.h>
@@ -45,6 +45,9 @@
 #include <openvdb/math/Coord.h>
 #include <memory>
 #include <type_traits>
+#if OPENVDB_ABI_VERSION_NUMBER <= 3
+#include <boost/shared_ptr.hpp>
+#endif
 
 
 namespace openvdb {
@@ -66,7 +69,7 @@ using Real    = double;
 using Vec2R = math::Vec2<Real>;
 using Vec2I = math::Vec2<Index32>;
 using Vec2f = math::Vec2<float>;
-using Vec2H = math::Vec2<half>;
+//using Vec2H = math::Vec2<half>;
 using math::Vec2i;
 using math::Vec2s;
 using math::Vec2d;
@@ -75,7 +78,7 @@ using math::Vec2d;
 using Vec3R = math::Vec3<Real>;
 using Vec3I = math::Vec3<Index32>;
 using Vec3f = math::Vec3<float>;
-using Vec3H = math::Vec3<half>;
+//using Vec3H = math::Vec3<half>;
 using Vec3U8 = math::Vec3<uint8_t>;
 using Vec3U16 = math::Vec3<uint16_t>;
 using math::Vec3i;
@@ -90,7 +93,7 @@ using BBoxd = math::BBox<Vec3d>;
 using Vec4R = math::Vec4<Real>;
 using Vec4I = math::Vec4<Index32>;
 using Vec4f = math::Vec4<float>;
-using Vec4H = math::Vec4<half>;
+//using Vec4H = math::Vec4<half>;
 using math::Vec4i;
 using math::Vec4s;
 using math::Vec4d;
@@ -110,10 +113,11 @@ using QuatR = math::Quat<Real>;
 class ValueMask {};
 
 
-#ifdef OPENVDB_3_ABI_COMPATIBLE
+#if OPENVDB_ABI_VERSION_NUMBER <= 3
 
 // Use Boost shared pointers in OpenVDB 3 ABI compatibility mode.
 template<typename T> using SharedPtr = boost::shared_ptr<T>;
+template<typename T> using WeakPtr = boost::weak_ptr<T>;
 
 template<typename T, typename U> inline SharedPtr<T>
 ConstPtrCast(const SharedPtr<U>& ptr) { return boost::const_pointer_cast<T, U>(ptr); }
@@ -124,10 +128,11 @@ DynamicPtrCast(const SharedPtr<U>& ptr) { return boost::dynamic_pointer_cast<T, 
 template<typename T, typename U> inline SharedPtr<T>
 StaticPtrCast(const SharedPtr<U>& ptr) { return boost::static_pointer_cast<T, U>(ptr); }
 
-#else // if !defined(OPENVDB_3_ABI_COMPATIBLE)
+#else // if OPENVDB_ABI_VERSION_NUMBER > 3
 
 // Use STL shared pointers from OpenVDB 4 on.
 template<typename T> using SharedPtr = std::shared_ptr<T>;
+template<typename T> using WeakPtr = std::weak_ptr<T>;
 
 /// @brief Return a new shared pointer that points to the same object
 /// as the given pointer but with possibly different <TT>const</TT>-ness.
@@ -160,7 +165,7 @@ DynamicPtrCast(const SharedPtr<U>& ptr) { return std::dynamic_pointer_cast<T, U>
 template<typename T, typename U> inline SharedPtr<T>
 StaticPtrCast(const SharedPtr<U>& ptr) { return std::static_pointer_cast<T, U>(ptr); }
 
-#endif // OPENVDB_3_ABI_COMPATIBLE
+#endif
 
 
 ////////////////////////////////////////
@@ -325,7 +330,7 @@ enum MergePolicy {
 template<typename T> const char* typeNameAsString()                 { return typeid(T).name(); }
 template<> inline const char* typeNameAsString<bool>()              { return "bool"; }
 template<> inline const char* typeNameAsString<ValueMask>()         { return "mask"; }
-template<> inline const char* typeNameAsString<half>()              { return "half"; }
+//template<> inline const char* typeNameAsString<half>()              { return "half"; }
 template<> inline const char* typeNameAsString<float>()             { return "float"; }
 template<> inline const char* typeNameAsString<double>()            { return "double"; }
 template<> inline const char* typeNameAsString<uint8_t>()           { return "uint8"; }
@@ -375,8 +380,8 @@ public:
     using BValueT = BValueType;
 
     CombineArgs()
-        : mAValPtr(NULL)
-        , mBValPtr(NULL)
+        : mAValPtr(nullptr)
+        , mBValPtr(nullptr)
         , mResultValPtr(&mResultVal)
         , mAIsActive(false)
         , mBIsActive(false)
@@ -477,7 +482,7 @@ struct SwappedCombineOp
 ////////////////////////////////////////
 
 
-#ifdef OPENVDB_3_ABI_COMPATIBLE
+#if OPENVDB_ABI_VERSION_NUMBER <= 3
 /// In copy constructors, members stored as shared pointers can be handled
 /// in several ways:
 /// <dl>

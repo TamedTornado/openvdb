@@ -1,14 +1,14 @@
 <project toolsVersion="3.5">
 	<platform name="windows-common">
-		<dependency name="cmake-x64" version="3.7.0" export-as="cmake"/>
+		<dependency name="cmake-x64" version="3.7.0" exportAs="cmake"/>
 	</platform>
 	<platform name="win" inherit="windows-common">
 		<dependency name="boost" version="1.63.0"/>
 		<dependency name="glew" version="1.13.0"/>
 		<dependency name="glfw" version="3.2.1"/>
 		<dependency name="zlib" version="1.2.11"/>
-		<dependency name="IntelTBB" version="2016.11.28"/>
-		<dependency name="c-blosc" version="1.11.2"/>
+		<dependency name="IntelTBB" version="2017.09.19" exportAs="TBB"/>
+		<dependency name="c-blosc" version="1.11.2" exportAs="Blosc"/>
 		<dependency name="ilmbase" version="2.2.0"/>
 		<dependency name="OpenEXR" version="2.2.0"/>
 	</platform>	

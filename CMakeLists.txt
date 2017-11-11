@@ -35,19 +35,18 @@ OPTION ( OPENVDB_BUILD_DOCS "Build the OpenVDB documentation" OFF )
 OPTION ( OPENVDB_BUILD_PYTHON_MODULE "Build the pyopenvdb Python module" OFF )
 OPTION ( OPENVDB_BUILD_HOUDINI_SOPS "Build the Houdini SOPs" OFF )
 OPTION ( OPENVDB_BUILD_MAYA_PLUGIN "Build the Maya plugin" OFF )
+OPTION ( OPENVDB_BUILD_CORE "Build the OpenVDB core" ON )
 OPTION ( OPENVDB_ENABLE_RPATH "Build with RPATH information" ON )
 OPTION ( OPENVDB_ENABLE_3_ABI_COMPATIBLE "Build with OpenVDB v3 ABI" ON )
 OPTION ( OPENVDB_BUILD_SHARED "Build a shared lib (dll) instead of a static lib" OFF)
 
 OPTION ( STATIC_WINCRT "Use the staticly linked Windows CRT (/MT or /MTd)" OFF )
+OPTION ( OPENVDB_DISABLE_BOOST_IMPLICIT_LINKING "Disable the implicit linking of Boost libraries on Windows" ON )
 
 IF (OPENVDB_BUILD_HOUDINI_SOPS)
   SET ( OPENVDB_BUILD_PYTHON_MODULE OFF )
 ENDIF ()
 
-if (OPENVDB_BUILD_UNITTESTS)
-	ENABLE_TESTING()
-ENDIF()
 
 LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules")
 

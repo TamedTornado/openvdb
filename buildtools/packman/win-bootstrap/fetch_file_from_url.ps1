@@ -1,20 +1,14 @@
 param(
-[Parameter(Mandatory=$true)][string]$sourceGUID=$null,
-[string]$output="out.exe"
+[Parameter(Mandatory=$true)][string]$sourceUrl=$null,
+[Parameter(Mandatory=$true)][string]$output=$null
 )
-$source = "http://nvgtl/download/" + $sourceGUID
+$source = $sourceUrl
 $filename = $output
-$key64 = 'QHV0ME1AdDNHVEwkY3IxcHQk'
-$key = [System.Text.Encoding]::GetEncoding(1252).GetString([Convert]::FromBase64String($key64))
-$key = $key | ConvertTo-SecureString -asPlainText -Force
-$credential = New-Object System.Management.Automation.PSCredential('svcgtlautomate', $key)
-$cache = New-Object System.Net.CredentialCache
-$cache.Add( "http://sso.nvidia.com", "NTLM", $credential)
 
 $req = [System.Net.httpwebrequest]::Create($source)
 $req.cookiecontainer = New-Object System.net.CookieContainer
-$req.Credentials = $cache
-Write-Host "Connecting to NVGTL ..."
+
+Write-Host "Connecting to $source ..."
 $res = $req.GetResponse()
 
 if($res.StatusCode -eq "OK") {

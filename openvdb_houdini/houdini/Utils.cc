@@ -39,33 +39,45 @@
 #include <GU/GU_Detail.h>
 #include <UT/UT_String.h>
 #include <UT/UT_Version.h>
+#ifdef OPENVDB_USE_LOG4CPLUS
+#include <openvdb/util/logging.h>
+#include <UT/UT_ErrorManager.h>
+#include <CHOP/CHOP_Error.h> // for CHOP_ERROR_MESSAGE
+#include <DOP/DOP_Error.h> // for DOP_MESSAGE
+#include <POP/POP_Error.h> // for POP_MESSAGE
+#include <ROP/ROP_Error.h> // for ROP_MESSAGE
+#include <VOP/VOP_Error.h> // for VOP_MESSAGE
+#include <VOPNET/VOPNET_Error.h> // for VOPNET_MESSAGE
+#include <string>
+#endif
+
 
 namespace openvdb_houdini {
 
 VdbPrimCIterator::VdbPrimCIterator(const GEO_Detail* gdp, const GA_PrimitiveGroup* group,
     FilterFunc filter):
-    mIter(gdp ? new GA_GBPrimitiveIterator(*gdp, group) : NULL),
+    mIter(gdp ? new GA_GBPrimitiveIterator(*gdp, group) : nullptr),
     mFilter(filter)
 {
     // Ensure that, after construction, this iterator points to
     // a valid VDB primitive (if there is one).
-    if (NULL == getPrimitive()) advance();
+    if (nullptr == getPrimitive()) advance();
 }
 
 
 VdbPrimCIterator::VdbPrimCIterator(const GEO_Detail* gdp, GA_Range::safedeletions,
     const GA_PrimitiveGroup* group, FilterFunc filter):
-    mIter(gdp ? new GA_GBPrimitiveIterator(*gdp, group, GA_Range::safedeletions()) : NULL),
+    mIter(gdp ? new GA_GBPrimitiveIterator(*gdp, group, GA_Range::safedeletions()) : nullptr),
     mFilter(filter)
 {
     // Ensure that, after construction, this iterator points to
     // a valid VDB primitive (if there is one).
-    if (NULL == getPrimitive()) advance();
+    if (nullptr == getPrimitive()) advance();
 }
 
 
 VdbPrimCIterator::VdbPrimCIterator(const VdbPrimCIterator& other):
-    mIter(other.mIter ? new GA_GBPrimitiveIterator(*other.mIter) : NULL),
+    mIter(other.mIter ? new GA_GBPrimitiveIterator(*other.mIter) : nullptr),
     mFilter(other.mFilter)
 {
 }
@@ -75,7 +87,7 @@ VdbPrimCIterator&
 VdbPrimCIterator::operator=(const VdbPrimCIterator& other)
 {
     if (&other != this) {
-        mIter.reset(other.mIter ? new GA_GBPrimitiveIterator(*other.mIter) : NULL);
+        mIter.reset(other.mIter ? new GA_GBPrimitiveIterator(*other.mIter) : nullptr);
         mFilter = other.mFilter;
     }
     return *this;
@@ -87,7 +99,7 @@ VdbPrimCIterator::advance()
 {
     if (mIter) {
         GA_GBPrimitiveIterator& iter = *mIter;
-        for (++iter; iter.getPrimitive() != NULL && getPrimitive() == NULL; ++iter) {}
+        for (++iter; iter.getPrimitive() != nullptr && getPrimitive() == nullptr; ++iter) {}
     }
 }
 
@@ -104,12 +116,12 @@ VdbPrimCIterator::getPrimitive() const
 #endif
             if (prim->getTypeId() == primVdbTypeId) {
                 GU_PrimVDB* vdb = UTverify_cast<GU_PrimVDB*>(prim);
-                if (mFilter && !mFilter(*vdb)) return NULL;
+                if (mFilter && !mFilter(*vdb)) return nullptr;
                 return vdb;
             }
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 
@@ -177,7 +189,7 @@ VdbPrimIterator::operator=(const VdbPrimIterator& other)
 GU_PrimVDB*
 createVdbPrimitive(GU_Detail& gdp, GridPtr grid, const char* name)
 {
-    return (!grid ? NULL : GU_PrimVDB::buildFromGrid(gdp, grid, /*src=*/NULL, name));
+    return (!grid ? nullptr : GU_PrimVDB::buildFromGrid(gdp, grid, /*src=*/nullptr, name));
 }
 
 
@@ -185,9 +197,9 @@ GU_PrimVDB*
 replaceVdbPrimitive(GU_Detail& gdp, GridPtr grid, GEO_PrimVDB& src,
     const bool copyAttrs, const char* name)
 {
-    GU_PrimVDB* vdb = NULL;
+    GU_PrimVDB* vdb = nullptr;
     if (grid) {
-        vdb = GU_PrimVDB::buildFromGrid(gdp, grid, (copyAttrs ? &src : NULL), name);
+        vdb = GU_PrimVDB::buildFromGrid(gdp, grid, (copyAttrs ? &src : nullptr), name);
         gdp.destroyPrimitive(src, /*andPoints=*/true);
     }
     return vdb;
@@ -263,6 +275,154 @@ makeCoordBBox(const UT_BoundingBox& b, const openvdb::math::Transform& t)
 
     return box;
 }
+
+
+////////////////////////////////////////
+
+
+#ifndef OPENVDB_USE_LOG4CPLUS
+
+void startLogForwarding(OP_OpTypeId) {}
+void stopLogForwarding(OP_OpTypeId) {}
+bool isLogForwarding(OP_OpTypeId) { return false; }
+
+#else
+
+namespace {
+
+namespace l4c = log4cplus;
+
+/// @brief log4cplus appender that directs log messages to UT_ErrorManager
+class HoudiniAppender: public l4c::Appender
+{
+public:
+    /// @param opType  SOP_OPTYPE_NAME, POP_OPTYPE_NAME, etc. (see OP_Node.h)
+    /// @param code    SOP_MESSAGE, SOP_VEX_ERROR, POP_MESSAGE, etc.
+    ///                (see SOP_Error.h, POP_Error.h, etc.)
+    HoudiniAppender(const char* opType, int code): mOpType(opType), mCode(code) {}
+
+    ~HoudiniAppender() override
+    {
+        close();
+        destructorImpl(); // must be called by Appender subclasses
+    }
+
+    void append(const l4c::spi::InternalLoggingEvent& event) override
+    {
+        if (mClosed) return;
+
+        auto* errMgr = UTgetErrorManager();
+        if (!errMgr || errMgr->isDisabled()) return;
+
+        const l4c::LogLevel level = event.getLogLevel();
+        const std::string& msg = event.getMessage();
+        const std::string& file = event.getFile();
+        const int line = event.getLine();
+
+        const UT_SourceLocation
+            loc{file.c_str(), line},
+            *locPtr = (file.empty() ? nullptr : &loc);
+
+        UT_ErrorSeverity severity = UT_ERROR_NONE;
+        switch (level) {
+            case l4c::DEBUG_LOG_LEVEL: severity = UT_ERROR_MESSAGE; break;
+            case l4c::INFO_LOG_LEVEL: severity = UT_ERROR_MESSAGE; break;
+            case l4c::WARN_LOG_LEVEL: severity = UT_ERROR_WARNING; break;
+            case l4c::ERROR_LOG_LEVEL: severity = UT_ERROR_ABORT; break;
+            case l4c::FATAL_LOG_LEVEL: severity = UT_ERROR_FATAL; break;
+        }
+        errMgr->addGeneric(mOpType.c_str(), mCode, msg.c_str(), severity, locPtr);
+    }
+
+    void close() override { mClosed = true; }
+
+private:
+    std::string mOpType = INVALID_OPTYPE_NAME;
+    int mCode = 0;
+    bool mClosed = false;
+};
+
+
+inline l4c::tstring
+getAppenderName(const OP_TypeInfo& opInfo)
+{
+    return LOG4CPLUS_STRING_TO_TSTRING(
+        std::string{"HOUDINI_"} + static_cast<const char*>(opInfo.myOptypeName));
+}
+
+
+/// @brief Return the error code for user-supplied messages in operators of the given type.
+inline int
+getGenericMessageCode(OP_OpTypeId opId)
+{
+    switch (opId) {
+        case CHOP_OPTYPE_ID:   return CHOP_ERROR_MESSAGE;
+        case DOP_OPTYPE_ID:    return DOP_MESSAGE;
+        case POP_OPTYPE_ID:    return POP_MESSAGE;
+        case ROP_OPTYPE_ID:    return ROP_MESSAGE;
+        case SOP_OPTYPE_ID:    return SOP_MESSAGE;
+        case VOP_OPTYPE_ID:    return VOP_MESSAGE;
+        case VOPNET_OPTYPE_ID: return VOPNET_MESSAGE;
+        default: break;
+    }
+    return 0;
+}
+
+
+inline void
+setLogForwarding(OP_OpTypeId opId, bool enable)
+{
+    const auto* opInfo = OP_Node::getOpInfoFromOpTypeID(opId);
+    if (!opInfo) return;
+
+    const auto appenderName = getAppenderName(*opInfo);
+
+    auto logger = openvdb::logging::internal::getLogger();
+    auto appender = logger.getAppender(appenderName);
+
+    if (appender && !enable) {
+        // If an appender for the given operator type exists, remove it.
+        logger.removeAppender(appender);
+    } else if (!appender && enable) {
+        // If an appender for the given operator type doesn't already exist, create one.
+        // Otherwise, do nothing: operators of the same type can share a single appender.
+        appender = log4cplus::SharedAppenderPtr{
+            new HoudiniAppender{opInfo->myOptypeName, getGenericMessageCode(opId)}};
+        appender->setName(appenderName);
+        // Don't forward debug or lower-level messages.
+        appender->setThreshold(log4cplus::INFO_LOG_LEVEL);
+        logger.addAppender(appender);
+    }
+}
+
+} // anonymous namespace
+
+
+void
+startLogForwarding(OP_OpTypeId opId)
+{
+    setLogForwarding(opId, true);
+}
+
+
+void
+stopLogForwarding(OP_OpTypeId opId)
+{
+    setLogForwarding(opId, false);
+}
+
+
+bool
+isLogForwarding(OP_OpTypeId opId)
+{
+    if (const auto* opInfo = OP_Node::getOpInfoFromOpTypeID(opId)) {
+        return openvdb::logging::internal::getLogger().getAppender(
+            getAppenderName(*opInfo));
+    }
+    return false;
+}
+
+#endif // OPENVDB_USE_LOG4CPLUS
 
 } // namespace openvdb_houdini
 

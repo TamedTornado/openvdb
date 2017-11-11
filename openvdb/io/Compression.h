@@ -103,57 +103,57 @@ enum {
 
 ////////////////////////////////////////
 
+// 
+// /// @brief RealToHalf and its specializations define a mapping from
+// /// floating-point data types to analogous half float types.
+// template<typename T>
+// struct RealToHalf {
+//     enum { isReal = false }; // unless otherwise specified, type T is not a floating-point type
+//     typedef T HalfT; // type T's half float analogue is T itself
+//     static HalfT convert(const T& val) { return val; }
+// };
+// template<> struct RealToHalf<float> {
+//     enum { isReal = true };
+//     typedef half HalfT;
+//     static HalfT convert(float val) { return HalfT(val); }
+// };
+// template<> struct RealToHalf<double> {
+//     enum { isReal = true };
+//     typedef half HalfT;
+//     // A half can only be constructed from a float, so cast the value to a float first.
+//     static HalfT convert(double val) { return HalfT(float(val)); }
+// };
+// template<> struct RealToHalf<Vec2s> {
+//     enum { isReal = true };
+//     typedef Vec2H HalfT;
+//     static HalfT convert(const Vec2s& val) { return HalfT(val); }
+// };
+// template<> struct RealToHalf<Vec2d> {
+//     enum { isReal = true };
+//     typedef Vec2H HalfT;
+//     // A half can only be constructed from a float, so cast the vector's elements to floats first.
+//     static HalfT convert(const Vec2d& val) { return HalfT(Vec2s(val)); }
+// };
+// template<> struct RealToHalf<Vec3s> {
+//     enum { isReal = true };
+//     typedef Vec3H HalfT;
+//     static HalfT convert(const Vec3s& val) { return HalfT(val); }
+// };
+// template<> struct RealToHalf<Vec3d> {
+//     enum { isReal = true };
+//     typedef Vec3H HalfT;
+//     // A half can only be constructed from a float, so cast the vector's elements to floats first.
+//     static HalfT convert(const Vec3d& val) { return HalfT(Vec3s(val)); }
+// };
 
-/// @brief RealToHalf and its specializations define a mapping from
-/// floating-point data types to analogous half float types.
-template<typename T>
-struct RealToHalf {
-    enum { isReal = false }; // unless otherwise specified, type T is not a floating-point type
-    typedef T HalfT; // type T's half float analogue is T itself
-    static HalfT convert(const T& val) { return val; }
-};
-template<> struct RealToHalf<float> {
-    enum { isReal = true };
-    typedef half HalfT;
-    static HalfT convert(float val) { return HalfT(val); }
-};
-template<> struct RealToHalf<double> {
-    enum { isReal = true };
-    typedef half HalfT;
-    // A half can only be constructed from a float, so cast the value to a float first.
-    static HalfT convert(double val) { return HalfT(float(val)); }
-};
-template<> struct RealToHalf<Vec2s> {
-    enum { isReal = true };
-    typedef Vec2H HalfT;
-    static HalfT convert(const Vec2s& val) { return HalfT(val); }
-};
-template<> struct RealToHalf<Vec2d> {
-    enum { isReal = true };
-    typedef Vec2H HalfT;
-    // A half can only be constructed from a float, so cast the vector's elements to floats first.
-    static HalfT convert(const Vec2d& val) { return HalfT(Vec2s(val)); }
-};
-template<> struct RealToHalf<Vec3s> {
-    enum { isReal = true };
-    typedef Vec3H HalfT;
-    static HalfT convert(const Vec3s& val) { return HalfT(val); }
-};
-template<> struct RealToHalf<Vec3d> {
-    enum { isReal = true };
-    typedef Vec3H HalfT;
-    // A half can only be constructed from a float, so cast the vector's elements to floats first.
-    static HalfT convert(const Vec3d& val) { return HalfT(Vec3s(val)); }
-};
 
-
-/// Return the given value truncated to 16-bit float precision.
-template<typename T>
-inline T
-truncateRealToHalf(const T& val)
-{
-    return T(RealToHalf<T>::convert(val));
-}
+// /// Return the given value truncated to 16-bit float precision.
+// template<typename T>
+// inline T
+// truncateRealToHalf(const T& val)
+// {
+//     return T(RealToHalf<T>::convert(val));
+// }
 
 
 ////////////////////////////////////////
@@ -209,35 +209,35 @@ readData<std::string>(std::istream& is, std::string* data, Index count, uint32_t
     }
 }
 
-/// HalfReader wraps a static function, read(), that is analogous to readData(), above,
-/// except that it is partially specialized for floating-point types in order to promote
-/// 16-bit half float values to full float.  A wrapper class is required because
-/// only classes, not functions, can be partially specialized.
-template<bool IsReal, typename T> struct HalfReader;
-/// Partial specialization for non-floating-point types (no half to float promotion)
-template<typename T>
-struct HalfReader</*IsReal=*/false, T> {
-    static inline void read(std::istream& is, T* data, Index count, uint32_t compression) {
-        readData(is, data, count, compression);
-    }
-};
-/// Partial specialization for floating-point types
-template<typename T>
-struct HalfReader</*IsReal=*/true, T> {
-    typedef typename RealToHalf<T>::HalfT HalfT;
-    static inline void read(std::istream& is, T* data, Index count, uint32_t compression) {
-        if (count < 1) return;
-        if (data == nullptr) {
-            // seek mode - pass through null pointer
-            readData<HalfT>(is, nullptr, count, compression);
-        } else {
-            std::vector<HalfT> halfData(count); // temp buffer into which to read half float values
-            readData<HalfT>(is, reinterpret_cast<HalfT*>(&halfData[0]), count, compression);
-            // Copy half float values from the temporary buffer to the full float output array.
-            std::copy(halfData.begin(), halfData.end(), data);
-        }
-    }
-};
+// /// HalfReader wraps a static function, read(), that is analogous to readData(), above,
+// /// except that it is partially specialized for floating-point types in order to promote
+// /// 16-bit half float values to full float.  A wrapper class is required because
+// /// only classes, not functions, can be partially specialized.
+// template<bool IsReal, typename T> struct HalfReader;
+// /// Partial specialization for non-floating-point types (no half to float promotion)
+// template<typename T>
+// struct HalfReader</*IsReal=*/false, T> {
+//     static inline void read(std::istream& is, T* data, Index count, uint32_t compression) {
+//         readData(is, data, count, compression);
+//     }
+// };
+// /// Partial specialization for floating-point types
+// template<typename T>
+// struct HalfReader</*IsReal=*/true, T> {
+//     typedef typename RealToHalf<T>::HalfT HalfT;
+//     static inline void read(std::istream& is, T* data, Index count, uint32_t compression) {
+//         if (count < 1) return;
+//         if (data == nullptr) {
+//             // seek mode - pass through null pointer
+//             readData<HalfT>(is, nullptr, count, compression);
+//         } else {
+//             std::vector<HalfT> halfData(count); // temp buffer into which to read half float values
+//             readData<HalfT>(is, reinterpret_cast<HalfT*>(&halfData[0]), count, compression);
+//             // Copy half float values from the temporary buffer to the full float output array.
+//             std::copy(halfData.begin(), halfData.end(), data);
+//         }
+//     }
+// };
 
 
 /// Write data to a stream.
@@ -277,46 +277,46 @@ writeData<std::string>(std::ostream& os, const std::string* data, Index count,
     }
 }
 
-/// HalfWriter wraps a static function, write(), that is analogous to writeData(), above,
-/// except that it is partially specialized for floating-point types in order to quantize
-/// floating-point values to 16-bit half float.  A wrapper class is required because
-/// only classes, not functions, can be partially specialized.
-template<bool IsReal, typename T> struct HalfWriter;
-/// Partial specialization for non-floating-point types (no float to half quantization)
-template<typename T>
-struct HalfWriter</*IsReal=*/false, T> {
-    static inline void write(std::ostream& os, const T* data, Index count, uint32_t compression) {
-        writeData(os, data, count, compression);
-    }
-};
-/// Partial specialization for floating-point types
-template<typename T>
-struct HalfWriter</*IsReal=*/true, T> {
-    typedef typename RealToHalf<T>::HalfT HalfT;
-    static inline void write(std::ostream& os, const T* data, Index count, uint32_t compression) {
-        if (count < 1) return;
-        // Convert full float values to half float, then output the half float array.
-        std::vector<HalfT> halfData(count);
-        for (Index i = 0; i < count; ++i) halfData[i] = RealToHalf<T>::convert(data[i]);
-        writeData<HalfT>(os, reinterpret_cast<const HalfT*>(&halfData[0]), count, compression);
-    }
-};
-#ifdef _MSC_VER
-/// Specialization to avoid double to float warnings in MSVC
-template<>
-struct HalfWriter</*IsReal=*/true, double> {
-    typedef RealToHalf<double>::HalfT HalfT;
-    static inline void write(std::ostream& os, const double* data, Index count,
-        uint32_t compression)
-    {
-        if (count < 1) return;
-        // Convert full float values to half float, then output the half float array.
-        std::vector<HalfT> halfData(count);
-        for (Index i = 0; i < count; ++i) halfData[i] = RealToHalf<double>::convert(data[i]);
-        writeData<HalfT>(os, reinterpret_cast<const HalfT*>(&halfData[0]), count, compression);
-    }
-};
-#endif // _MSC_VER
+// /// HalfWriter wraps a static function, write(), that is analogous to writeData(), above,
+// /// except that it is partially specialized for floating-point types in order to quantize
+// /// floating-point values to 16-bit half float.  A wrapper class is required because
+// /// only classes, not functions, can be partially specialized.
+// template<bool IsReal, typename T> struct HalfWriter;
+// /// Partial specialization for non-floating-point types (no float to half quantization)
+// template<typename T>
+// struct HalfWriter</*IsReal=*/false, T> {
+//     static inline void write(std::ostream& os, const T* data, Index count, uint32_t compression) {
+//         writeData(os, data, count, compression);
+//     }
+// };
+// /// Partial specialization for floating-point types
+// template<typename T>
+// struct HalfWriter</*IsReal=*/true, T> {
+//     typedef typename RealToHalf<T>::HalfT HalfT;
+//     static inline void write(std::ostream& os, const T* data, Index count, uint32_t compression) {
+//         if (count < 1) return;
+//         // Convert full float values to half float, then output the half float array.
+//         std::vector<HalfT> halfData(count);
+//         for (Index i = 0; i < count; ++i) halfData[i] = RealToHalf<T>::convert(data[i]);
+//         writeData<HalfT>(os, reinterpret_cast<const HalfT*>(&halfData[0]), count, compression);
+//     }
+// };
+// #ifdef _MSC_VER
+// /// Specialization to avoid double to float warnings in MSVC
+// template<>
+// struct HalfWriter</*IsReal=*/true, double> {
+//     typedef RealToHalf<double>::HalfT HalfT;
+//     static inline void write(std::ostream& os, const double* data, Index count,
+//         uint32_t compression)
+//     {
+//         if (count < 1) return;
+//         // Convert full float values to half float, then output the half float array.
+//         std::vector<HalfT> halfData(count);
+//         for (Index i = 0; i < count; ++i) halfData[i] = RealToHalf<double>::convert(data[i]);
+//         writeData<HalfT>(os, reinterpret_cast<const HalfT*>(&halfData[0]), count, compression);
+//     }
+// };
+// #endif // _MSC_VER
 
 
 ////////////////////////////////////////
@@ -417,12 +417,12 @@ readCompressedValues(std::istream& is, ValueT* destBuf, Index destCount,
     }
 
     // Read in the buffer.
-    if (fromHalf) {
-        HalfReader<RealToHalf<ValueT>::isReal, ValueT>::read(
-            is, (seek ? nullptr : tempBuf), tempCount, compression);
-    } else {
+//     if (fromHalf) {
+//         HalfReader<RealToHalf<ValueT>::isReal, ValueT>::read(
+//             is, (seek ? nullptr : tempBuf), tempCount, compression);
+//     } else {
         readData<ValueT>(is, (seek ? nullptr : tempBuf), tempCount, compression);
-    }
+//    }
 
     // If mask compression is enabled and the number of active values read into
     // the temp buffer is smaller than the size of the destination buffer,
@@ -570,23 +570,23 @@ writeCompressedValues(std::ostream& os, ValueT* srcBuf, Index srcCount,
             metadata == MASK_AND_ONE_INACTIVE_VAL ||
             metadata == MASK_AND_TWO_INACTIVE_VALS)
         {
-            if (!toHalf) {
+//            if (!toHalf) {
                 // Write one of at most two distinct inactive values.
                 os.write(reinterpret_cast<const char*>(&inactiveVal[0]), sizeof(ValueT));
                 if (metadata == MASK_AND_TWO_INACTIVE_VALS) {
                     // Write the second of two distinct inactive values.
                     os.write(reinterpret_cast<const char*>(&inactiveVal[1]), sizeof(ValueT));
                 }
-            } else {
-                // Write one of at most two distinct inactive values.
-                ValueT truncatedVal = static_cast<ValueT>(truncateRealToHalf(inactiveVal[0]));
-                os.write(reinterpret_cast<const char*>(&truncatedVal), sizeof(ValueT));
-                if (metadata == MASK_AND_TWO_INACTIVE_VALS) {
-                    // Write the second of two distinct inactive values.
-                    truncatedVal = truncateRealToHalf(inactiveVal[1]);
-                    os.write(reinterpret_cast<const char*>(&truncatedVal), sizeof(ValueT));
-                }
-            }
+//             } else {
+//                 // Write one of at most two distinct inactive values.
+//                 ValueT truncatedVal = static_cast<ValueT>(truncateRealToHalf(inactiveVal[0]));
+//                 os.write(reinterpret_cast<const char*>(&truncatedVal), sizeof(ValueT));
+//                 if (metadata == MASK_AND_TWO_INACTIVE_VALS) {
+//                     // Write the second of two distinct inactive values.
+//                     truncatedVal = truncateRealToHalf(inactiveVal[1]);
+//                     os.write(reinterpret_cast<const char*>(&truncatedVal), sizeof(ValueT));
+//                 }
+//             }
         }
 
         if (metadata == NO_MASK_AND_ALL_VALS) {
@@ -632,11 +632,11 @@ writeCompressedValues(std::ostream& os, ValueT* srcBuf, Index srcCount,
     }
 
     // Write out the buffer.
-    if (toHalf) {
-        HalfWriter<RealToHalf<ValueT>::isReal, ValueT>::write(os, tempBuf, tempCount, compress);
-    } else {
+//     if (toHalf) {
+//         HalfWriter<RealToHalf<ValueT>::isReal, ValueT>::write(os, tempBuf, tempCount, compress);
+//     } else {
         writeData(os, tempBuf, tempCount, compress);
-    }
+//    }
 }
 
 } // namespace io
